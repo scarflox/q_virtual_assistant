@@ -22,7 +22,7 @@ from tools.screenshot import take_screenshot
 load_dotenv()
 
 MIC_INDEX = None
-TRIGGER_WORD = "Hey Queue"
+TRIGGER_WORD = "Supporter"
 CONVERSATION_TIMEOUT = 30  # seconds of inactivity before exiting conversation mode
 
 logging.basicConfig(level=logging.DEBUG)  # logging
@@ -47,8 +47,12 @@ tools = [get_time,
 prompt = ChatPromptTemplate.from_messages([
     ("system", 
      "You are Q, an intelligent AI assistant. "
-     "When asked to play music, use the `query_and_play_track` tool. "
-     "Always respond concisely after using a tool."),
+     "You can chat casually, answer questions, and perform searches. "
+     "If the user requests to play music (song, artist, or playlist), "
+     "use the `query_and_play_track` tool. "
+     "If the user asks about something else (e.g., facts, advice, web searches, conversation), "
+     "respond directly or use other available tools. "
+     "Always keep your responses concise after using a tool."),
     ("human", "{input}"),
     ("placeholder", "{agent_scratchpad}")
 ])
@@ -91,7 +95,7 @@ def write():
                         content = response["output"]
                         logging.info(f"✅ Agent responded: {content}")
 
-                        print("Jarvis:", content)
+                        print("Q:", content)
                         af.initiate_tts(text=content)
                         last_interaction_time = time.time()
 
