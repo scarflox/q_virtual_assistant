@@ -1,0 +1,11 @@
+.env
+.vscode
+.venv
+.__pycache__
+.time_tool.py
+.screenshot.py
+.OCR.py
+.matrix.py
+.duckduckgo.py
+.arp_scan.py
+.cache
