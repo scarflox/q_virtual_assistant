@@ -133,7 +133,7 @@ def play_track(uri: str, artist_uri: str | None = None):
          return "No active Spotify device found. Please open Spotify on a device."
     device_id = devices[0]["id"]
 
-    sp.start_playback(device_id=device_id, uris=[uri])
+    sp.start_playback(device_id=device_id, uris=[uri]) # User must have spotify premium, and be active.
     print(f"Now playing: {uri}")
 
     if artist_uri:
@@ -220,6 +220,6 @@ def query_and_play_track(query):
     if not chosen_uri:
         return f"No valid track found for '{query}'."
     
-    af.initiate_tts(text=f"Currently playing - {chosen_name} by {chosen_artist}")
+    # af.initiate_tts(text=f"Currently playing - {chosen_name} by {chosen_artist}")
     play_track(chosen_uri, chosen["artists"][0]["uri"] if chosen else None)
     return f"Now playing: {chosen_name} by {chosen_artist}"
