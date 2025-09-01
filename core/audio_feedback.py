@@ -1,18 +1,19 @@
 import os
 import sounddevice as sd
 import soundfile as sf
-from core.utils import global_tts
+from core.utils import get_tts
 
 ESPEAK_PATH = r"C:\Program Files\eSpeak NG\command-line"
 
 os.environ["PATH"] = ESPEAK_PATH + os.pathsep + os.environ.get("PATH", "")
 
-def initiate_tts(tts=global_tts, text="Sorry!>msiexec /i espeak-ng.msi Haven't quite caught that.", speaker_id = "p347", file_path = "assets/sounds/temp.wav"):
+def initiate_tts(text="Sorry!>msiexec /i espeak-ng.msi Haven't quite caught that.", speaker_id = "p347", file_path = "assets/sounds/temp.wav"):
+    tts = get_tts()
 
     folder = os.path.dirname(file_path)
     if not os.path.exists(folder):
         os.makedirs(folder)
-        
+
     try:
         # parameters for smoother speech
         length_scale = 1.5  # slightly slower speech

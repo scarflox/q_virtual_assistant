@@ -5,6 +5,7 @@ import os
 import re
 from dotenv import load_dotenv
 from rapidfuzz import fuzz
+from core.utils import wait_for_spotify_boot, start_spotify_exe, find_spotify_process
 import spotipy
 import core.audio_feedback as af
 from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
@@ -216,6 +217,12 @@ def query_and_play_track(query):
         str: A message indicating which track is now playing, or a message 
              stating that no valid track was found.
     """
+
+    if not find_spotify_process():
+        start_spotify_exe()
+        if not wait_for_spotify_boot():
+            raise Exception("Spotify failed to execute.")
+        
     chosen, chosen_name, chosen_artist, chosen_uri, chosen_score = query_best_song(query)
     if not chosen_uri:
         return f"No valid track found for '{query}'."
