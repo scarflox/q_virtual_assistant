@@ -9,3 +9,5 @@
 .duckduckgo.py
 .arp_scan.py
 .cache
+.test.py
+.project.log

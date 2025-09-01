@@ -1,7 +1,11 @@
 import os
 import logging
 import time
+import subprocess
+import json
+from openai import OpenAI
 from dotenv import load_dotenv
+from core.utils import tool_to_openai
 import core.audio_feedback as af
 import speech_recognition as sr
 from langchain_ollama import ChatOllama, OllamaLLM
@@ -19,6 +23,19 @@ from tools.spotify_player import query_and_play_track, stop_current_playback
 # from tools.screenshot import take_screenshot
 
 load_dotenv()
+LOG_FILE = os.path.join(os.path.dirname(__file__), "project.log")
+
+logging.basicConfig(
+    level=logging.DEBUG,                 # Capture all log levels (DEBUG and above)
+    format="%(asctime)s [%(levelname)s] %(message)s",  # How logs will appear
+    handlers=[
+        logging.FileHandler(LOG_FILE, encoding='utf-8')  # Send logs to file
+    ]
+)
+
+token = os.environ["GITHUB_TOKEN"]
+endpoint = "https://models.github.ai/inference"
+model_name = "openai/gpt-4o"
 
 MIC_INDEX = None
 TRIGGER_WORD = "Supporter"
@@ -29,22 +46,26 @@ logging.basicConfig(level=logging.DEBUG)  # logging
 recognizer = sr.Recognizer()
 mic = sr.Microphone(device_index=MIC_INDEX)
 
-# Initialize LLM
-llm = ChatOllama(model="qwen3:1.7b",
-                  reasoning=False,
-                  temperature=0.4,
-)
 
-# Tool list
+
+# Define a function tool that the model can ask to invoke in order to retrieve flight information
+
 tools = [
         query_and_play_track,
         stop_current_playback]
 
-# Tool-calling prompt
-prompt = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """You are 'Supporter', a smart and friendly AI assistant.
+openai_tools = [tool_to_openai(t) for t in tools]
+
+tool_map = {t.name: t for t in tools}
+
+
+client = OpenAI(
+    base_url=endpoint,
+    api_key=token,
+)
+
+messages=[
+    {"role": "system", "content": """You are 'Supporter', a smart and friendly AI assistant.
             You can chat casually, answer questions, give advice, perform web searches, and assist with tasks.
             Only use specialized tools when explicitly needed.
 
@@ -68,34 +89,31 @@ prompt = ChatPromptTemplate.from_messages([
             Response: "Why did the computer go to therapy? It had too many bugs!"
 
 Always be friendly and helpful. Only invoke Spotify when the user clearly requests it.
-"""
-    ),
-    ("human", "{input}"),
-    ("placeholder", "{agent_scratchpad}")
-])
-
-# Agent + executor
-agent = create_tool_calling_agent(
-    llm=llm, 
-    tools=tools, 
-    prompt=prompt
-    )
-executor = AgentExecutor(agent=agent,
-                          tools=tools,
-                            verbose=True,
-)
+    - While answering, don't use asterisk (*) for non-mathematical purposes.
+"""},
+    
+]
 
 # Main interaction loop
 def write():
     conversation_mode = False
     last_interaction_time = None
-
+    
     try:
         with mic as source:
             recognizer.adjust_for_ambient_noise(source)
             while True:
+                
                 try:
+                    current_time = time.time()
+                    if conversation_mode and last_interaction_time is not None:
+                        if current_time - last_interaction_time > CONVERSATION_TIMEOUT:
+                            logging.debug("Timeout reached, returning to wake word mode")
+                            conversation_mode = False
+
                     if not conversation_mode:
+                        print("I'm ready to work! ")
+                        print("Say 'Supporter' so I can wake up ")
                         logging.info("🎤 Listening for wake word...")
                         audio = recognizer.listen(source, timeout=10)
                         transcript = recognizer.recognize_google(audio)
@@ -103,6 +121,8 @@ def write():
 
                         if TRIGGER_WORD.lower() in transcript.lower():
                             logging.info(f"🗣 Triggered by: {transcript}")
+                            os.system("cls")
+                            subprocess.run(["powershell", "-NoProfile", "-Command", "winfetch"])
                             af.initiate_tts(text="Hey! How can i help you?")
                             conversation_mode = True
                             last_interaction_time = time.time()
@@ -112,23 +132,46 @@ def write():
                         logging.info("🎤 Listening for next command...")
                         audio = recognizer.listen(source, timeout=10)
                         command = recognizer.recognize_google(audio)
-                        logging.info(f"📥 Command: {command}")
-
-                        logging.info("🤖 Sending command to agent...")
-                        response = executor.invoke({"input": command})
-                        content = response["output"]
-                        logging.info(f"✅ Agent responded: {content}")
-                        print("You: ", command)
-                        print("Q:", content)
-                        af.initiate_tts(text=content)
                         last_interaction_time = time.time()
-
-                        if time.time() - last_interaction_time > CONVERSATION_TIMEOUT:
-                            logging.info("⌛ Timeout: Returning to wake word mode.")
-                            conversation_mode = False
-
+                        logging.info(f"📥 Command: {command}")
+                        logging.info("🤖 Sending command to agent...")
+                        messages.append({
+                            "role": "user",
+                            "content": command,
+                        })
+                        response = client.chat.completions.create(
+                            messages=messages,
+                            tools=openai_tools,
+                            model=model_name,
+                        )
+                        function_return = None
+                        if response.choices[0].finish_reason == "tool_calls":
+                            for tool_call in response.choices[0].message.tool_calls:
+                                if tool_call.type == "function":
+                                    func_name = tool_call.function.name
+                                    func_args = json.loads(tool_call.function.arguments)
+                                    if func_name in tool_map:
+                                        callable_tool = tool_map[func_name]
+                                        print(f"Calling tool `{func_name}` with args {func_args}")
+                                        function_return = callable_tool.run(func_args)
+                                        print(f"Tool returned = {function_return}")
+                                        messages.append({
+                                        "tool_call_id": tool_call.id,
+                                        "role": "system",
+                                        "name": func_name,
+                                        "content": function_return
+                                    })
+                                    else:
+                                        logging.warning(F"Tool `{func_name}` was not found in tool_map.")
+                                    
+                        tts_text = function_return if function_return else response.choices[0].message.content
+                        af.initiate_tts(text=tts_text)
+                        print(tts_text)
+                        
                 except sr.WaitTimeoutError:
-                    logging.warning("⚠️ Timeout waiting for audio.")
+                    os.system("cls")
+                    subprocess.run(["powershell", "-NoProfile", "-Command", "winfetch"])
+                    time.sleep(5)
                     if (
                         conversation_mode
                         and time.time() - last_interaction_time > CONVERSATION_TIMEOUT
@@ -138,7 +181,9 @@ def write():
                         )
                         conversation_mode = False
                 except sr.UnknownValueError:
-                    logging.warning("⚠️ Could not understand audio.")
+                    os.system("cls")
+                    subprocess.run(["powershell", "-NoProfile", "-Command", "winfetch"])
+                    time.sleep(5)
                 except Exception as e:
                     logging.error(f"❌ Error during recognition or tool call: {e}")
                     time.sleep(1)

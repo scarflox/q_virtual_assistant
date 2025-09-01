@@ -133,7 +133,7 @@ def play_track(uri: str, artist_uri: str | None = None):
     if not devices:
          return "No active Spotify device found. Please open Spotify on a device."
     device_id = devices[0]["id"]
-
+    
     sp.start_playback(device_id=device_id, uris=[uri]) # User must have spotify premium, and be active.
     print(f"Now playing: {uri}")
 
@@ -184,7 +184,7 @@ def queue_recommendations(track_uri, artist_uri = None, max_results = 30):
         try:
             sp.add_to_queue(t["uri"], device_id=device_id)
         except Exception as e:
-            print(f"Error adding track {t['uri']} to queue: {e}")
+            pass
 
     print(f"Queued {len(recommended_tracks)} recommended tracks based on {track_info['name']}")
     return recommended_tracks
@@ -227,6 +227,6 @@ def query_and_play_track(query):
     if not chosen_uri:
         return f"No valid track found for '{query}'."
     
-    # af.initiate_tts(text=f"Currently playing - {chosen_name} by {chosen_artist}")
+    
     play_track(chosen_uri, chosen["artists"][0]["uri"] if chosen else None)
-    return f"Now playing: {chosen_name} by {chosen_artist}"
+    return f"Now playing: {chosen_name} by {chosen_artist}, Enjoy!"

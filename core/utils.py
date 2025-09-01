@@ -2,17 +2,32 @@
 
 from TTS.api import TTS
 import psutil
+import sys
+import os
+from contextlib import contextmanager
 import win32com.client
 import time
 
 _global_tts = None
 SPOTIFY_PROC = "Spotify.exe"
 
+@contextmanager
+def suppress_stdout_stderr():
+    with open(os.devnull, 'w') as devnull:
+        old_out, old_err = sys.stdout, sys.stderr
+        sys.stdout, sys.stderr = devnull, devnull
+        try:
+            yield
+        finally:
+            sys.stdout, sys.stderr = old_out, old_err
+
+
 def get_tts():
     global _global_tts
     if _global_tts is None:
         print("Initializing TTS model...")
-        _global_tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=True)
+        with suppress_stdout_stderr():
+            _global_tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=False)
     return _global_tts
 
 
@@ -44,6 +59,20 @@ def wait_for_spotify_boot(max_timeout=30):
         else:
             time.sleep(0.5)
     return False
+
+def tool_to_openai(tool):
+    return {
+        "type": "function",
+        "function": {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.args_schema.schema() if tool.args_schema else {
+                "type": "object",
+                "properties": {}, #fallback
+                "required": [],
+            },
+        },
+    }
 
 
 # SPOTIFY UTIL -----------------------
