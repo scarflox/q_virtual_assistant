@@ -11,3 +11,4 @@
 .cache
 .test.py
 .project.log
+.temputils.py

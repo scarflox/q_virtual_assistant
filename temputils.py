@@ -16,59 +16,41 @@ _global_tts = None
 SPOTIFY_PROC = "Spotify.exe"
 WINFETCH_TIMEOUT = 5 
 # ---------------- WINFETCH ----------------
-
-winfetch_refresh_lock = threading.Lock()
-last_3_lines=["","",""] 
-
 def initiate_winfetch():
-    """Run Winfetch and return its output as string."""
-    try:
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", "winfetch"],
-            capture_output=True,
-            text=True
-        )
-        return result.stdout
-    except Exception as e:
-        return f"Winfetch error: {e}\n"
+    """Run Winfetch and return its output and height."""
+    subprocess.run(
+        ["powershell", "-NoProfile", "-Command", "winfetch"],
+        capture_output=True,
+        text=True
+    )
+    
 
 
 # Fix terminal positioning for AI text & winfetch.
-
-
-_last_winfetch_output = ""
-_last_ai_lines = ["", "", ""]
-
-def redraw_terminal(force=False):
-    """Clear terminal, print Winfetch + last 3 AI lines, only if changed or forced."""
-    global _last_winfetch_output, _last_ai_lines
-
-    with winfetch_refresh_lock:
-        winfetch_output = initiate_winfetch()
-
-        # Check if anything changed
-        if force or winfetch_output != _last_winfetch_output or last_3_lines != _last_ai_lines:
-            _last_winfetch_output = winfetch_output
-            _last_ai_lines = last_3_lines.copy()
-
-            sys.stdout.write('\x1b[H\x1b[2J')  # clear screen
-            sys.stdout.flush()
-
-            # Print Winfetch
-            print(winfetch_output, end="")
-
-            # Print last 3 AI lines
-            for line in last_3_lines:
-                print((line or "").ljust(80))
-
-            sys.stdout.flush()
-
+winfetch_refresh_lock = threading.Lock()
+last_3_lines=["","",""] 
 
 def winfetch_refresher_loop():
-    """Refresh only when content changes, every few seconds as a fallback."""
     while True:
-        redraw_terminal()
         time.sleep(WINFETCH_TIMEOUT)
+        with winfetch_refresh_lock:
+            sys.stdout.write('\x1b[?25l')
+            sys.stdout.flush()
+
+            sys.stdout.write('\x1b[H')
+            sys.stdout.write('\x1b[2J')
+            sys.stdout.flush()
+
+            initiate_winfetch()
+
+            for line in last_3_lines:
+                print("\x1b[K", end="")
+            
+            sys.stdout.flush()
+
+            sys.stdout.write('\x1b[?25h')
+            sys.stdout.flush()
+
 
             
 # ---------------- TTS ----------------
