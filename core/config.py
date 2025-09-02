@@ -2,9 +2,6 @@ from dotenv import load_dotenv
 from pathlib import Path
 import os
 
-
-
-
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,26 +35,20 @@ else:
 # - Empty (use default DATA_DIR/.cache)
 # - A dir path (We'll create a file inside it)
 # - A file path (We'll use the file directly)
-_raw_cache = os.getenv("SPOTIFY_CACHE_PATH", None)
+_raw_cache = os.getenv("SPOTIFY_CACHE_PATH", "").strip() or None
+
 if _raw_cache:
-    _raw_cache = _raw_cache.strip()
+    _cache_candidate = Path(_raw_cache).expanduser()
 else:
-    _raw_cache = None
+    _cache_candidate = (DATA_DIR / ".cache").expanduser()
+
  # Determine a Path object for the cache area; default to DATA_DIR/.cache
-_cache_candidate = Path(_raw_cache) if _raw_cache else (Path(DATA_DIR) / ".cache")
-_cache_candidate = _cache_candidate.expanduser()
 
 # If candidate is a dir, use it as a directory and creaate a file inside.
-if _cache_candidate.exists() and _cache_candidate.is_dir():
+if _cache_candidate.exists() and _cache_candidate.is_dir() or _cache_candidate.suffix == "":
     cache_dir = _cache_candidate
-    SPOTIFY_CACHE_FILE = cache_dir
-
-elif _cache_candidate.suffix == "" and str(_cache_candidate).endswith(("/", "\\")) ==  False:
-    # No suffix -> treat like a directory.
-    cache_dir = _cache_candidate
-    SPOTIFY_CACHE_FILE = cache_dir
+    SPOTIFY_CACHE_FILE = cache_dir / "spotipy_cache"
 else:
-    # candidate looks like a file, get parent.
     cache_dir = _cache_candidate.parent
     SPOTIFY_CACHE_FILE = _cache_candidate
 
@@ -65,11 +56,6 @@ cache_dir.mkdir(parents=True, exist_ok=True)
 
 # stable cache name inside dir.
 SPOTIFY_CACHE_FILE = str(SPOTIFY_CACHE_FILE.resolve())
-
-# If the user provides a filename, prefer it:
-if _cache_candidate.suffix: # User passed something that looks like a filename
-    SPOTIFY_CACHE_FILE = str(_cache_candidate.resolve())
-
 
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")

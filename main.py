@@ -12,7 +12,7 @@ import core.audio_feedback as af
 import speech_recognition as sr
 
 # importing tools
-from tools.spotify_player import query_and_play_track, stop_current_playback
+from tools.spotify_player import query_and_play_track, stop_current_playback, play_next_track, play_user_playlist
 
 load_dotenv()
 
@@ -28,7 +28,9 @@ mic = sr.Microphone(device_index=MIC_INDEX)
 tools = [
         query_and_play_track,
         stop_current_playback,
-        change_volume]
+        change_volume,
+        play_next_track,
+        play_user_playlist]
 
 openai_tools = [tool_to_openai(t) for t in tools]
 
@@ -49,6 +51,7 @@ messages=[
             - If the user explicitly asks to play a song, artist, or playlist, you may use the `query_and_play_track` tool.
             - If the user says "play [song/artist]" or something similar, treat everything after "play" as the song name and use the tool.
             - If the user requests to stop the music or playback, you may use the `stop_current_playback` tool.
+            - If the user requests to play a playlist by it's name, call the `play_user_playlist` with the playlist name as an argument
             - Otherwise, do not assume the user wants music; respond naturally.
 
             For all other requests:
@@ -63,6 +66,8 @@ messages=[
             Response: (Use `query_and_play_track` tool)
             - User: "Tell me a joke"
             Response: "Why did the computer go to therapy? It had too many bugs!"
+            - User: "Play my playlist Don't Drake and Drive"
+            Response: (Use `play_user_playlist` with "Don't Drake and Drive" as the argument.)
 
 Always be friendly and helpful. Only invoke Spotify when the user clearly requests it.
     - While answering, don't use asterisk (*) for non-mathematical purposes.

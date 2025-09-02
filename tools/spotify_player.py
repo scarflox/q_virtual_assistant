@@ -14,6 +14,7 @@ from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 load_dotenv()
 
 
+
 # Spotify clients
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     client_id=SPOTIFY_CLIENT_ID,
@@ -27,6 +28,47 @@ sp_client = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
     client_id=SPOTIFY_CLIENT_ID,
     client_secret=SPOTIFY_CLIENT_SECRET
 ))
+
+    
+@tool
+def play_user_playlist(playlist_name):
+    """
+    
+    This function will be activated when the user wants to play one of his playlists.
+    We will be getting the current user playlists in a list, each item in the list is a tuple (playlist_name, playlist_id)
+    we will identify the right playlist by it's name and then use the id to play it.
+    Example:
+    User input - "Play my playlist `Don't Drake and Drive`"
+    AI - play_user_playlist("Don't Drake and Drive")
+    returns a confirm message after it plays the playlist. 
+
+    """
+
+    user_playlists = []
+    for playlist in sp.current_user_playlists()["items"]:
+        user_playlists.append((playlist["name"].lower(), playlist["id"]))
+    
+    playlist_name_lower = playlist_name.lower()
+    best_match, best_score = None, 0
+    final_playlist_name = ""
+    for (name, id) in user_playlists:
+        playlist_score = fuzz.token_set_ratio(playlist_name_lower, name.lower())
+
+        if playlist_score > best_score:
+            best_score = playlist_score
+            best_match = id
+            final_playlist_name = name
+
+    if not best_match:
+        return "No playlist was found."
+    
+    uri = "spotify:playlist:" + best_match
+    
+    try:
+        sp.start_playback(context_uri=uri)
+        return f"Playlist found! Name of playlist: {final_playlist_name}"
+    except spotipy.exceptions.SpotifyException as e:
+        return f"Error playing playlist: {e}"
 
 
 # ------------------- Search Helpers -------------------
@@ -195,6 +237,17 @@ def stop_current_playback():
         return "Playback paused successfully."
     except spotipy.exceptions.SpotifyException as e:
         return f"Error pausing playback: {e}"
+
+
+@tool
+def play_next_track():
+    """Skips to the next song in spotify."""
+    try:
+        sp.next_track()
+        return "Next track played."
+    except spotipy.exceptions.SpotifyException as e:
+        return f"Error skipping song: {e}"
+
 
 @tool
 def query_and_play_track(query):
