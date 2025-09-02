@@ -113,8 +113,9 @@ Before we run this project we must run the prerequisites.
 
 <!-- USAGE EXAMPLES -->
 ## Usage
+In our project directory we have the ""start_service.bat"" file, run it as administrator to get started.
 
-When running the program (Make sure it runs with administrator permissions) it will open a Windows terminal prompt, boot up winfetch and start the AI listener as well.
+After running the program, it will open a Windows terminal prompt, boot up winfetch and start the AI listener as well.
 It will instruct you to say `Supporter` to your microphone (Make sure you have a functioning microphone!), After saying the wake-word, The AI will respond and wait
 for your next prompt.
 As for tool usage; If the AI finds it suitable to utilize one of the tools in the toolbox for a prompt given by the user, it will use it and return the function_return and read it out loud.

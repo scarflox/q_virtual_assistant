@@ -28,7 +28,6 @@ MIC_INDEX = None
 TRIGGER_WORD = "Supporter"
 CONVERSATION_TIMEOUT = 30 # seconds of inactivity before exiting conversation mode
 
-
 recognizer = sr.Recognizer()
 mic = sr.Microphone(device_index=MIC_INDEX)
 
