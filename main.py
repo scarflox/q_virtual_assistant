@@ -1,13 +1,13 @@
 import os
 import logging
-from core.config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL_NAME, MIC_INDEX, DATA_DIR
+from core.config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL_NAME, MIC_INDEX
 import time
 import json
 import sys
 import threading
 from openai import OpenAI
 from dotenv import load_dotenv
-from core.utils import tool_to_openai, winfetch_refresher_loop, last_3_lines
+from core.utils import tool_to_openai, winfetch_refresher_loop, change_volume, last_3_lines
 import core.audio_feedback as af
 import speech_recognition as sr
 
@@ -25,11 +25,10 @@ CONVERSATION_TIMEOUT = 30 # seconds of inactivity before exiting conversation mo
 recognizer = sr.Recognizer()
 mic = sr.Microphone(device_index=MIC_INDEX)
 
-# Define a function tool that the model can ask to invoke in order to retrieve flight information
-
 tools = [
         query_and_play_track,
-        stop_current_playback]
+        stop_current_playback,
+        change_volume]
 
 openai_tools = [tool_to_openai(t) for t in tools]
 
@@ -71,6 +70,7 @@ Always be friendly and helpful. Only invoke Spotify when the user clearly reques
     
 ]
 
+
 # Main interaction loop
 def write():
     conversation_mode = False
@@ -89,8 +89,7 @@ def write():
                             conversation_mode = False
 
                     if not conversation_mode:
-                        print("I'm ready to work! ")
-                        print("Say 'Supporter' so I can wake up ")
+                        print("`Supporter` is ready.")
                         logging.info("🎤 Listening for wake word...")
                         audio = recognizer.listen(source, timeout=10)
                         transcript = recognizer.recognize_google(audio)
@@ -116,11 +115,13 @@ def write():
                             "role": "user",
                             "content": command,
                         })
+                        
                         response = client.chat.completions.create(
                             messages=messages,
                             tools=openai_tools,
                             model=OPENAI_MODEL_NAME,
                         )
+
                         function_return = None
                         if response.choices[0].finish_reason == "tool_calls":
                             for tool_call in response.choices[0].message.tool_calls:
@@ -149,6 +150,7 @@ def write():
                         last_3_lines = last_3_lines[-3:]
 
                         time.sleep(0.1)
+
                 except sr.WaitTimeoutError:
                     print("Timeout reached..! Conversation mode is off. call `Supporter`")
                     if (
@@ -164,7 +166,6 @@ def write():
                     
                 except Exception as e:
                     logging.error(f"❌ Error during recognition or tool call: {e}")
-                    time.sleep(1)
 
     except Exception as e:
         logging.critical(f"❌ Critical error in main loop: {e}")
@@ -172,5 +173,6 @@ def write():
 
 if __name__ == "__main__":
     threading.Thread(target=winfetch_refresher_loop, daemon=True).start()
+    
     write()
     

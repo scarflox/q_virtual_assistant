@@ -8,6 +8,6 @@ Set-Location "F:\q_virtual_assistant"
 & ".\.venv\Scripts\Activate.ps1"
 
 # Run script and pause to see errors
-python ".\test.py"
+python ".\main.py"
 Write-Host "`nPress any key to exit..."
 $x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
