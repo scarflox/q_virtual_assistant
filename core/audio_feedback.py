@@ -2,6 +2,7 @@ import os
 import sounddevice as sd
 import soundfile as sf
 from core.utils import get_tts
+from core.config import DATA_DIR
 
 ESPEAK_PATH = r"C:\Program Files\eSpeak NG\command-line"
 

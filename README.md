@@ -5,7 +5,10 @@
 
 <h3 align="center">Q - Virtual Assistant</h3>
 
-  <p align="center">
+  <<p align="center"> Your own station's AI virtual assistant. 
+  <br />
+   <br />
+</p>
     Your own station's virtual assistant.
     <br />
     <!-- <a href="https://github.com/github_username/repo_name"><strong>Explore the docs »</strong></a> -->
@@ -47,64 +50,64 @@
 
 <!-- [![Product Name Screen Shot][product-screenshot]](https://example.com) -->
 
-This project is my own experimentation with making a personal AI virtual assistant for your station,
-it currently utilizes OpenAI's gpt-4o model and Spotify's API.
-The AI will navigate to ready-to-use tools from a toolbox made to handle different requests (e.g. play a track in spotify, stop current track, CLI tools and more coming)
-Communication with Q will be done with voice prompts - User speaks, Google recognizer will identify the text and send it away as a prompt.
-
+This project is an experimental personal AI virtual assistant named Q, designed to help you manage tasks on your station.
+- Uses **OpenAI GPT-40** for conversational AI.
+- Integrates with **Spotify API** to play, stop, and queue music (requires **Spotify Premium account**).
+- Provides a toolbox for future extensions (CLI commands, music, and more).
+- Voice-controlled: speak commands, recognized via **Google Speech Recognition**, and executed by the AI.
 <!-- GETTING STARTED -->
 ## Getting Started
 
-Before we run this project we must run the prerequisites.
-
 ### Prerequisites
 
-- Download winfetch from the link below:
-
-* github
-  ```sh
-  https://github.com/lptstr/winfetch
-  ```
-
-- In case you want to utilize the Spotify tools, you must log in with a **Premium Spotify account.** Currently, non-premium accounts are not handled gracefully.
-(Also make sure you have Spotify ;))
-
-- From the Microsoft store, download **"Windows Terminal"**, it is advised to changed it's appearance for better graphics and visualization (Color scheme, background transparency)
+- Install [Winfetch](https://github.com/lptstr/winfetch) for terminal visualization.
+- Install [eSpeak-ng](https://github.com/lptstr/winfetch) for TTS (text-to-speech).
+- Spotify Premium account for music-related features.
+- Install Windows Terminal from the **Microsoft Store** (recommended to customize appearance for better visualization)
+- Microphone (Google recognizer requires a working mic).
 
 ### Installation
 
-1. Get a free API Key at [Github/marketplace/models]( https://github.com/marketplace/models) (OpenAI GPT-4o)
-* In case you wish to use a different model, you will need to edit it in main.py:
-* main.py
-  ```sh
-  model_name = "openai/gpt-4o"
+1. **Obtain OpenAI API Key** from [Github Models Marketplace](https://github.com/marketplace/models) for **OpenAI GPT-4o**.
+- Default model in `main.py`:
+ ```sh
+  OPENAI_MODEL_NAME = "openai/gpt-4o"
   ```
-  
-2. Clone the repo
+
+2. **Clone this repository**:
    ```sh
    git clone [https://github.com/github_username/repo_name.git](https://github.com/scarflox/q_virtual_assistant)
    ```
    
-3. Make a [new Spotify API app](https://developer.spotify.com/) with the following callback: 
-   ```sh
-   http://127.0.0.1:8888/callback
-   ```
-   Select Web API usage, And save the Client ID, and Client Secret.
-   
-5. Install required packages
+3. **Create a Spotify API app** via  [new Spotify API app](https://developer.spotify.com/):
+- Redirect URI: `http://127.0.0.1:8888/callback`
+- Save the **Client ID** and **Client Secret**.
+
+4. **Install dependencies**
+
    ```.sh
    pip install -r requirements.txt
    ```
-6. make a .env file in the format presented in the project files.
+
+5. **Create `.env` following `.env.example`:
    ```.env
-   GITHUB_TOKEN="YOUR_PERSONAL_TOKEN_HERE"
-   CLIENT_ID="YOUR_CLIENT_ID_HERE"
-   LIENT_SECRET="YOUR_CLIENT_SECRET_HERE"
+    GITHUB_TOKEN="YOUR_PERSONAL_TOKEN_HERE"
+    SPOTIFY_CLIENT_ID="YOUR_CLIENT_ID_HERE"
+    SPOTIFY_CLIENT_SECRET="YOUR_CLIENT_SECRET_HERE"
+    SPOTIFY_CACHE_PATH="~/.cache"
+    OPENAI_API_KEY="YOUR_OPENAI_KEY"
+    OPENAI_MODEL_NAME="openai/gpt-4o"
+    OPENAI_BASE_URL="https://models.github.ai/inference"
+    MIC_INDEX=None
+    TRIGGER_WORD="Supporter"
+    CONVERSATION_TIMEOUT=30
+    SCOPE="user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-private"
+
    ```
-7. Change git remote url to avoid accidental pushes to base project
+7. (Optional) Change the Git remote URL to avoid accidental pushes:
    ```sh
    git remote set-url origin github_username/repo_name
-   git remote -v # confirm the changes
+   git remote -v # Verify changes
    ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -113,15 +116,18 @@ Before we run this project we must run the prerequisites.
 
 <!-- USAGE EXAMPLES -->
 ## Usage
-In our project directory we have the `start_service.bat` file, run it as administrator to get started.
+1. Run `start_service.bat` **as administrator**.
+- This wil open Windows Terminal, start Winfetch, and launch the AI listener.
+2. Speak the wake word: `Supporter`
+3. After the wake word is recognized:
+- Give commands to the AI.
+- If applicable, the AI may invoke tools from the toolbox.
+- Responses and tool outputs are read out loud via TTS.
 
-After running the program, it will open a Windows terminal prompt, boot up winfetch and start the AI listener as well.
-It will instruct you to say `Supporter` to your microphone (Make sure you have a functioning microphone!), After saying the wake-word, The AI will respond and wait
-for your next prompt.
-As for tool usage; If the AI finds it suitable to utilize one of the tools in the toolbox for a prompt given by the user, it will use it and return the function_return and read it out loud.
-
-## Important
-This program is still in very early development and is buggy and unforgiving, make sure you've done all of the prerequisites as necessary.
+## Important Notes
+- Early development: some bugs are expected.
+- Make sure all prerequisites are installed and configure correctly.
+- Spotify tools require **Premium account**. Non-premium users may encounter errors.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

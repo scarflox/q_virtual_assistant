@@ -1,11 +1,13 @@
+# Go to project root
 Set-Location "F:\q_virtual_assistant"
 
-# Activate the venv
+# Enable script execution (optional if policy is restrictive)
+# Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+
+# Activate venv
 & ".\.venv\Scripts\Activate.ps1"
 
-# Run your Python script
-python ".\main.py"
-
-
-
-# Keep this ps file in here.
+# Run script and pause to see errors
+python ".\test.py"
+Write-Host "`nPress any key to exit..."
+$x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

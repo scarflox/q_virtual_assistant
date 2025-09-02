@@ -1,32 +1,26 @@
 import os
 import logging
+from core.config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL_NAME, MIC_INDEX, DATA_DIR
 import time
 import json
 import sys
 import threading
 from openai import OpenAI
 from dotenv import load_dotenv
-from core.utils import tool_to_openai, initiate_winfetch, winfetch_refresher_loop, last_3_lines, winfetch_refresh_lock, redraw_terminal
+from core.utils import tool_to_openai, winfetch_refresher_loop, last_3_lines
 import core.audio_feedback as af
 import speech_recognition as sr
-from langchain_ollama import ChatOllama, OllamaLLM
-from langchain_core.messages import HumanMessage
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate
 
 # importing tools
 from tools.spotify_player import query_and_play_track, stop_current_playback
 
 load_dotenv()
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-token = os.environ["GITHUB_TOKEN"]
-endpoint = "https://models.github.ai/inference"
-model_name = "openai/gpt-4o"
-
-MIC_INDEX = None
 TRIGGER_WORD = "Supporter"
 CONVERSATION_TIMEOUT = 30 # seconds of inactivity before exiting conversation mode
+
 
 recognizer = sr.Recognizer()
 mic = sr.Microphone(device_index=MIC_INDEX)
@@ -43,8 +37,8 @@ tool_map = {t.name: t for t in tools}
 
 
 client = OpenAI(
-    base_url=endpoint,
-    api_key=token,
+    base_url=OPENAI_BASE_URL,
+    api_key=OPENAI_API_KEY,
 )
 
 messages=[
@@ -79,20 +73,16 @@ Always be friendly and helpful. Only invoke Spotify when the user clearly reques
 
 # Main interaction loop
 def write():
-    global last_3_lines
-    global last_winfetch_refresh
-
-    last_winfetch_refresh = 0
     conversation_mode = False
     last_interaction_time = None
-    
+    global last_3_lines
     try:
         with mic as source:
             recognizer.adjust_for_ambient_noise(source)
             while True:
                 
                 try:
-                    current_time = time.time()   
+                    current_time = time.time()
                     if conversation_mode and last_interaction_time is not None:
                         if current_time - last_interaction_time > CONVERSATION_TIMEOUT:
                             logging.debug("Timeout reached, returning to wake word mode")
@@ -108,17 +98,11 @@ def write():
 
                         if TRIGGER_WORD.lower() in transcript.lower():
                             logging.info(f"🗣 Triggered by: {transcript}")
-                            initiate_winfetch()
                             af.initiate_tts(text="Hey! How can i help you?")
                             conversation_mode = True
                             last_interaction_time = time.time()
-                            with winfetch_refresh_lock:
-                                last_3_lines.append("Hey! How can I help you?")
-                                while len(last_3_lines) > 3:
-                                    del last_3_lines[0]
-                            redraw_terminal()
-                                
-                            
+                            last_3_lines.append("Hey! How can I help you?")
+                            last_3_lines = last_3_lines[-3:]
                         else:
                             logging.debug("Wake word not detected, continuing...")
                     else:
@@ -135,7 +119,7 @@ def write():
                         response = client.chat.completions.create(
                             messages=messages,
                             tools=openai_tools,
-                            model=model_name,
+                            model=OPENAI_MODEL_NAME,
                         )
                         function_return = None
                         if response.choices[0].finish_reason == "tool_calls":
@@ -161,13 +145,8 @@ def write():
                         af.initiate_tts(text=tts_text)
                         print(tts_text)
 
-                        with winfetch_refresh_lock:
-                            last_3_lines.append(str(response.choices[0].message.content or ""))
-                            last_3_lines.append(response.choices[0].message.content)
-                            while len(last_3_lines) > 3:
-                                    del last_3_lines[0]
-                        redraw_terminal()
-    
+                        last_3_lines.append(response.choices[0].message.content)
+                        last_3_lines = last_3_lines[-3:]
 
                         time.sleep(0.1)
                 except sr.WaitTimeoutError:
@@ -193,8 +172,5 @@ def write():
 
 if __name__ == "__main__":
     threading.Thread(target=winfetch_refresher_loop, daemon=True).start()
-
-    redraw_terminal()
-
     write()
     

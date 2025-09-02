@@ -4,6 +4,7 @@ from langchain.tools import tool
 import os
 import re
 from dotenv import load_dotenv
+from core.config import  SCOPE, REDIRECT_URI, SPOTIFY_CLIENT_SECRET, SPOTIFY_CLIENT_ID, SPOTIFY_CACHE_FILE
 from rapidfuzz import fuzz
 from core.utils import wait_for_spotify_boot, start_spotify_exe, find_spotify_process
 import spotipy
@@ -12,22 +13,19 @@ from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 
 load_dotenv()
 
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-REDIRECT_URI = "http://127.0.0.1:8888/callback"
-SCOPE = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-private"
 
 # Spotify clients
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-    client_id=CLIENT_ID,
-    client_secret=CLIENT_SECRET,
+    client_id=SPOTIFY_CLIENT_ID,
+    client_secret=SPOTIFY_CLIENT_SECRET,
     redirect_uri=REDIRECT_URI,
-    scope=SCOPE
+    scope=SCOPE,
+    cache_path=SPOTIFY_CACHE_FILE
 ))
 
 sp_client = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-    client_id=CLIENT_ID,
-    client_secret=CLIENT_SECRET
+    client_id=SPOTIFY_CLIENT_ID,
+    client_secret=SPOTIFY_CLIENT_SECRET
 ))
 
 
