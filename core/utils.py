@@ -1,27 +1,18 @@
 
+"""
+Helper functions: stream_ai_response, initiate_winfetch, TTS, Spotify tools.
+"""
+
 from TTS.api import TTS
-from ctypes import cast, POINTER
-from langchain.tools import tool
-from comtypes import CLSCTX_ALL
 import psutil
-import threading
+import json
 import sys
-from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import os
 import subprocess
 from contextlib import contextmanager
 import win32com.client
 import time
-
-# ---------------- GLOBALS ----------------
-_global_tts = None
-SPOTIFY_PROC = "Spotify.exe"
-WINFETCH_TIMEOUT = 5 
 # ---------------- WINFETCH ----------------
-
-winfetch_refresh_lock = threading.Lock()
-last_3_lines=["","",""] 
-
 def initiate_winfetch():
     """Run Winfetch and return its output as string."""
     try:
@@ -35,45 +26,8 @@ def initiate_winfetch():
         return f"Winfetch error: {e}\n"
 
 
-# Fix terminal positioning for AI text & winfetch.
-
-
-_last_winfetch_output = ""
-_last_ai_lines = ["", "", ""]
-
-def redraw_terminal(force=False):
-    """Clear terminal, print Winfetch + last 3 AI lines, only if changed or forced."""
-    global _last_winfetch_output, _last_ai_lines
-
-    with winfetch_refresh_lock:
-        winfetch_output = initiate_winfetch()
-
-        # Check if anything changed
-        if force or winfetch_output != _last_winfetch_output or last_3_lines != _last_ai_lines:
-            _last_winfetch_output = winfetch_output
-            _last_ai_lines = last_3_lines.copy()
-
-            sys.stdout.write('\x1b[H\x1b[2J')  # clear screen
-            sys.stdout.flush()
-
-            # Print Winfetch
-            print(winfetch_output, end="")
-
-            # Print last 3 AI lines
-            for line in last_3_lines:
-                print((line or "").ljust(80))
-
-            sys.stdout.flush()
-
-
-def winfetch_refresher_loop():
-    """Refresh only when content changes, every few seconds as a fallback."""
-    while True:
-        redraw_terminal()
-        time.sleep(WINFETCH_TIMEOUT)
-
-            
 # ---------------- TTS ----------------
+
 @contextmanager
 def suppress_stdout_stderr():
     """Context manager to suppress stdout and stderr."""
@@ -87,20 +41,25 @@ def suppress_stdout_stderr():
 
 
 def get_tts():
-    global _global_tts
-    if _global_tts is None:
+    import core.config as cfg
+    if getattr(cfg, "_global_tts", None) is None:
         print("Initializing TTS model...")
         with suppress_stdout_stderr():
-            _global_tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=False)
-    return _global_tts
+            cfg._global_tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=False)
+        return cfg._global_tts
 
 
 # ---------------- SPOTIFY UTIL ----------------
+
 def find_spotify_process():
+    import core.config as cfg
     """Check if Spotify is running."""
     for p_spotify in psutil.process_iter():
-        if p_spotify.name().lower() == SPOTIFY_PROC.lower():
-            return True
+        try:
+            if p_spotify.name().lower() == cfg.SPOTIFY_PROC.lower():
+                return True
+        except Exception:
+            continue
     return False
 
 
@@ -126,41 +85,61 @@ def wait_for_spotify_boot(max_timeout=30):
             time.sleep(0.5)
     return False
 
-
-def tool_to_openai(tool):
-    """Convert a Python tool object to OpenAI-compatible function schema."""
-    return {
-        "type": "function",
-        "function": {
-            "name": tool.name,
-            "description": tool.description,
-            "parameters": tool.args_schema.schema() if tool.args_schema else {
-                "type": "object",
-                "properties": {},  # fallback
-                "required": [],
-            },
-        },
-    }
+# ---------------- OPENAI TOOL HELPERS ----------------
 
 
-@tool
-def change_volume(new_volume):
+def handle_tool_call(tool_call):
+    from core.config import tool_map
+    func_name = tool_call.function.name
+    func_args = json.loads(tool_call.function.arguments)
+    if func_name in tool_map:
+        return tool_map[func_name].run(func_args)
+    return f"Tool {func_name} not found"
 
-    """Handles Computer's volume %
-       - new_volume is the argument for this function, it is a float.
-       - If a user wants to change his volume, this is the right tool to do it.
-       - .SetMasterVolumeLevelScalar() takes a float between 0.0 - 1.0, 1.0 is 100% volume, 0.0 is 0%, So if a user says 
-       something like "Change my volume to 50" or "Make my volume 25%", just pass the whole '25' or '50' number,
-       it will be divided by 100 here.
-       - Returns string for tts to read with new_volume (new_volume) is a float.
-       - If user asks to mute his sound, simply pass new_volume as `0.0`.
-       
+def stream_ai_response(messages, client, model_name, openai_tools):
     """
-    if 0 <= new_volume <= 100:
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        volume = cast(interface, POINTER(IAudioEndpointVolume))
-        volume.SetMasterVolumeLevelScalar(new_volume / 100, None)
-        return f"Set volume to {new_volume}%"
-    else:
-        return f"Invalid volume requested."
+    Replacement for streaming: synchronous .create() with manual token yielding.
+    Executes any tool calls and yields strings to be displayed in the GUI.
+    """
+    try:
+        resp = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            tools=openai_tools
+        )
+
+        # Extract assistant message text
+        content = ""
+        try:
+            content = resp.choices[0].message.content
+        except Exception:
+            content = str(resp)
+
+        if content:
+            # Yield in word-sized chunks for incremental GUI updates
+            words = content.split()
+            for i, w in enumerate(words):
+                yield w + (" " if i < len(words) - 1 else "")
+        else:
+            # If assistant returned nothing
+            yield "[Empty response from assistant]"
+
+        # Check if any tool calls are embedded in the response (e.g., JSON commands)
+        # Example: {"tool":"play_user_playlist","arguments":{"playlist_name":"Dont Drake and Drive"}}
+        # For each tool call, execute and yield result
+        # Here we assume the assistant wraps tool calls in a recognizable format
+        import re, json
+        tool_matches = re.findall(r"\{.*?\"tool\".*?\}", content or "")
+        for t_json in tool_matches:
+            try:
+                t_obj = json.loads(t_json)
+                tool_name = t_obj.get("tool")
+                args = t_obj.get("arguments", {})
+                if tool_name in openai_tools:
+                    result = openai_tools[tool_name](**args)
+                    yield f"\n[Tool `{tool_name}` executed: {result}]\n"
+            except Exception as e:
+                yield f"\n[Error executing tool: {e}]\n"
+
+    except Exception as e:
+        yield f"[Error obtaining assistant response: {e}]"

@@ -1,10 +1,12 @@
-# tools/time_tool.py
+
+"""
+    Spotify-specific tools.
+"""
 
 from langchain.tools import tool
-import os
 import re
 from dotenv import load_dotenv
-from core.config import  SCOPE, REDIRECT_URI, SPOTIFY_CLIENT_SECRET, SPOTIFY_CLIENT_ID, SPOTIFY_CACHE_FILE
+
 from rapidfuzz import fuzz
 from core.utils import wait_for_spotify_boot, start_spotify_exe, find_spotify_process
 import spotipy
@@ -13,22 +15,30 @@ from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 
 load_dotenv()
 
+_spotify_clients = None
 
+def initiate_spotify_clients():
+    global _spotify_clients
+    if _spotify_clients is not None:
+        return _spotify_clients
+     
+    from core.config import  SCOPE, REDIRECT_URI, SPOTIFY_CLIENT_SECRET, SPOTIFY_CLIENT_ID, SPOTIFY_CACHE_FILE
+    # Spotify clients
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+        client_id=SPOTIFY_CLIENT_ID,
+        client_secret=SPOTIFY_CLIENT_SECRET,
+        redirect_uri=REDIRECT_URI,
+        scope=SCOPE,
+        cache_path=SPOTIFY_CACHE_FILE
+    ))
 
-# Spotify clients
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-    client_id=SPOTIFY_CLIENT_ID,
-    client_secret=SPOTIFY_CLIENT_SECRET,
-    redirect_uri=REDIRECT_URI,
-    scope=SCOPE,
-    cache_path=SPOTIFY_CACHE_FILE
-))
+    sp_client = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
+        client_id=SPOTIFY_CLIENT_ID,
+        client_secret=SPOTIFY_CLIENT_SECRET
+    ))
 
-sp_client = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-    client_id=SPOTIFY_CLIENT_ID,
-    client_secret=SPOTIFY_CLIENT_SECRET
-))
-
+    _spotify_clients = (sp, sp_client)
+    return _spotify_clients
     
 @tool
 def play_user_playlist(playlist_name):
@@ -43,7 +53,9 @@ def play_user_playlist(playlist_name):
     returns a confirm message after it plays the playlist. 
 
     """
-
+    if not playlist_name:
+        raise ValueError("playlist_name was not provided to play_user_playlist")
+    sp, sp_client = initiate_spotify_clients()
     user_playlists = []
     for playlist in sp.current_user_playlists()["items"]:
         user_playlists.append((playlist["name"].lower(), playlist["id"]))
@@ -74,6 +86,7 @@ def play_user_playlist(playlist_name):
 # ------------------- Search Helpers -------------------
 def regular_query(query: str, max_tracks: int = 100, artist_name: str | None = None, artist_threshold: int = 40, query_name: str = "Regular Query"):
     """Search Spotify tracks with fuzzy scoring."""
+    sp, sp_client = initiate_spotify_clients()
     tracks = []
     offset = 0
     limit = 50
@@ -153,6 +166,7 @@ def query_best_song(query: str, max_tracks: int = 100, confidence_threshold: int
 
 # ------------------- Playback Helpers -------------------
 def get_track_info(track_id: str) -> dict | None:
+    sp, sp_client = initiate_spotify_clients()
     try:
         return sp_client.track(track_id)
     except Exception as e:
@@ -161,6 +175,7 @@ def get_track_info(track_id: str) -> dict | None:
 
 
 def get_artist_info(artist_id: str) -> dict | None:
+    sp, sp_client = initiate_spotify_clients()
     try:
         return sp_client.artist_related_artists(artist_id)
     except Exception as e:
@@ -169,6 +184,7 @@ def get_artist_info(artist_id: str) -> dict | None:
 
 def play_track(uri: str, artist_uri: str | None = None):
     """Play a track and queue recommendations based on related artists."""
+    sp, sp_client = initiate_spotify_clients()
     devices = sp.devices().get("devices", [])
     if not devices:
          return "No active Spotify device found. Please open Spotify on a device."
@@ -183,6 +199,7 @@ def play_track(uri: str, artist_uri: str | None = None):
 
 def queue_recommendations(track_uri, artist_uri = None, max_results = 30):
     """Queue recommended tracks using related artists and their top tracks."""
+    sp, sp_client = initiate_spotify_clients()
     track_id = track_uri.split(":")[-1] if ":" in track_uri else track_uri.split("/")[-1]
 
     track_info = get_track_info(track_id)
@@ -232,6 +249,7 @@ def queue_recommendations(track_uri, artist_uri = None, max_results = 30):
 @tool
 def stop_current_playback():
     """Pauses the current spotify playback."""
+    sp, sp_client = initiate_spotify_clients()
     try:
         sp.pause_playback()
         return "Playback paused successfully."
@@ -242,6 +260,7 @@ def stop_current_playback():
 @tool
 def play_next_track():
     """Skips to the next song in spotify."""
+    sp, sp_client = initiate_spotify_clients()
     try:
         sp.next_track()
         return "Next track played."
@@ -251,6 +270,7 @@ def play_next_track():
 
 @tool
 def query_and_play_track(query):
+    
     """
     Search for a song on Spotify and play the best matching track.
 
@@ -268,7 +288,7 @@ def query_and_play_track(query):
         str: A message indicating which track is now playing, or a message 
              stating that no valid track was found.
     """
-
+    sp, sp_client = initiate_spotify_clients()
     if not find_spotify_process():
         start_spotify_exe()
         if not wait_for_spotify_boot():
