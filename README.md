@@ -117,9 +117,10 @@ This project is an experimental personal AI virtual assistant named Q, designed 
 <!-- USAGE EXAMPLES -->
 ## Usage
 1. Run `start_service.bat` **as administrator**.
-- This wil open Windows Terminal, start Winfetch, and launch the AI listener.
-2. Speak the wake word: `Supporter`
-3. After the wake word is recognized:
+- This wil open Windows Terminal, show system metrics at the top, and launch the AI listener.
+2. Default mode for this program is chat, if you want to use your microphone, type: /voice.
+- If you want to return to chat, type: /chat.
+3. You are able to do the following:
 - Give commands to the AI.
 - If applicable, the AI may invoke tools from the toolbox.
 - Responses and tool outputs are read out loud via TTS.
