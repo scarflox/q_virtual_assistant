@@ -59,7 +59,7 @@ This project is an experimental personal AI virtual assistant named Q, designed 
 ## Getting Started
 
 ### Prerequisites
-
+- Python 3.11.0
 - Install [Winfetch](https://github.com/lptstr/winfetch) for terminal visualization.
 - Install [eSpeak-ng](https://github.com/lptstr/winfetch) for TTS (text-to-speech).
 - Spotify Premium account for music-related features.

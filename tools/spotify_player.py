@@ -53,9 +53,19 @@ def play_user_playlist(playlist_name):
     returns a confirm message after it plays the playlist. 
 
     """
+    if not find_spotify_process():
+        start_spotify_exe()
+        if not wait_for_spotify_boot():
+            raise Exception("Spotify failed to execute.")
+        
+        
     if not playlist_name:
         raise ValueError("playlist_name was not provided to play_user_playlist")
     sp, sp_client = initiate_spotify_clients()
+    devices = sp.devices().get("devices", [])
+    if not devices:
+        return "No active Spotify device found. Please open Spotify on a device."
+    device_id = devices[0]["id"]
     user_playlists = []
     for playlist in sp.current_user_playlists()["items"]:
         user_playlists.append((playlist["name"].lower(), playlist["id"]))
@@ -77,7 +87,7 @@ def play_user_playlist(playlist_name):
     uri = "spotify:playlist:" + best_match
     
     try:
-        sp.start_playback(context_uri=uri)
+        sp.start_playback(device_id=device_id, context_uri=uri)
         return f"Playlist found! Name of playlist: {final_playlist_name}"
     except spotipy.exceptions.SpotifyException as e:
         return f"Error playing playlist: {e}"
@@ -183,6 +193,11 @@ def get_artist_info(artist_id: str) -> dict | None:
         return None
 
 def play_track(uri: str, artist_uri: str | None = None):
+    if not find_spotify_process():
+        start_spotify_exe()
+        if not wait_for_spotify_boot():
+            raise Exception("Spotify failed to execute.")
+        
     """Play a track and queue recommendations based on related artists."""
     sp, sp_client = initiate_spotify_clients()
     devices = sp.devices().get("devices", [])
