@@ -61,12 +61,16 @@ def play_user_playlist(playlist_name):
         
     if not playlist_name:
         raise ValueError("playlist_name was not provided to play_user_playlist")
+    
     sp, sp_client = initiate_spotify_clients()
     devices = sp.devices().get("devices", [])
+
     if not devices:
         return "No active Spotify device found. Please open Spotify on a device."
+    
     device_id = devices[0]["id"]
     user_playlists = []
+
     for playlist in sp.current_user_playlists()["items"]:
         user_playlists.append((playlist["name"].lower(), playlist["id"]))
     
@@ -271,6 +275,49 @@ def stop_current_playback():
     except spotipy.exceptions.SpotifyException as e:
         return f"Error pausing playback: {e}"
 
+@tool
+def add_song_to_playlist(playlist_name, track_name):
+
+    """
+    Values passed to this tool are playlist_name and track_name
+        Use this function if user requests to add a song by it's name to one of his playlists.
+        e.g. "Add 'NOKIA By Drake' to my playlist 'prominence' "
+    """
+
+    # Search for user playlist
+    sp, sp_client = initiate_spotify_clients()
+
+    if not playlist_name:
+        raise ValueError("playlist_name was not provided to play_user_playlist")
+    
+    user_playlists = []
+    
+    for playlist in sp.current_user_playlists()["items"]:
+        user_playlists.append((playlist["name"].lower(), playlist["id"]))
+    
+    playlist_name_lower = playlist_name.lower()
+    best_match, best_score = None, 0
+    final_playlist_name = ""
+    
+    for (name, id) in user_playlists:
+        playlist_score = fuzz.token_set_ratio(playlist_name_lower, name.lower())
+
+        if playlist_score > best_score:
+            best_score = playlist_score
+            best_match = id
+            final_playlist_name = name
+
+    if not best_match:
+        return "No playlist was found."
+    
+    uri = "spotify:playlist:" + best_match
+
+    chosen, chosen_name, chosen_artist, chosen_uri, chosen_score = query_best_song(track_name)
+    if not chosen_uri:
+        return f"No valid track found for '{track_name}'."
+    
+    sp.playlist_add_items(uri, items=[chosen_uri])
+    return f"Added '{chosen_name.capitalize()} by {chosen_artist.capitalize()}' to the playlist - {final_playlist_name}"
 
 @tool
 def play_next_track():

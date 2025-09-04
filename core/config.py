@@ -3,7 +3,6 @@
 Global config and constants vars.
 """
 
-
 from dotenv import load_dotenv
 from pathlib import Path
 import os
@@ -78,7 +77,7 @@ SPOTIFY_CACHE_FILE = str(SPOTIFY_CACHE_FILE.resolve())
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 REDIRECT_URI = "http://127.0.0.1:8888/callback"
-SCOPE = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-private"
+SCOPE = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-private user-read-playback-state user-modify-playback-state playlist-modify-public playlist-modify-private"
 SPOTIFY_PROC = "Spotify.exe"
 
 
@@ -88,7 +87,7 @@ def get_tools():
                                   stop_current_playback,
                                   play_next_track, 
                                   play_user_playlist,
-                                  )
+                                  add_song_to_playlist)
     from tools.tools import tool_to_openai, change_volume
 
     tools = [
@@ -96,7 +95,8 @@ def get_tools():
             stop_current_playback,
             change_volume,
             play_next_track,
-            play_user_playlist]
+            play_user_playlist,
+            add_song_to_playlist]
 
     openai_tools = [tool_to_openai(t) for t in tools]
 

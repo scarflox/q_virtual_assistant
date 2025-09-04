@@ -2,7 +2,6 @@
 """
 Terminal GUI — cleaned up input handler and sanitized system summary.
 """
-import re
 import time
 import threading
 import platform
@@ -60,7 +59,6 @@ class TerminalGUI(App):
         self._stop_threads = False
 
     def compose(self) -> ComposeResult:
-        # Use a safe ASCII system summary instead of raw winfetch output
         yield Static(_get_system_summary(), id="system_summary")
         self.chat_log = RichLog(id="chat_log")
         yield self.chat_log
@@ -172,13 +170,16 @@ class TerminalGUI(App):
 
             # ---------------- STREAMING ----------------
             try:
-                response_stream = CLIENT.chat.completions.stream(
+                # Create the stream properly
+                stream = CLIENT.chat.completions.create(
                     messages=messages_for_call,
                     tools=openai_tools,
                     model=OPENAI_MODEL_NAME,
+                    stream=True  # Enable streaming mode
                 )
 
-                for chunk in response_stream:
+                # Iterate over the stream
+                for chunk in stream:
                     # Get the delta from the first choice
                     if chunk.choices and chunk.choices[0].delta:
                         delta = chunk.choices[0].delta
@@ -271,6 +272,7 @@ class TerminalGUI(App):
                     messages=messages_for_call,
                     model=OPENAI_MODEL_NAME,
                     tools=openai_tools,
+                    stream=False  # Explicitly disable streaming for fallback
                 )
                 
                 message = resp.choices[0].message
@@ -349,7 +351,6 @@ class TerminalGUI(App):
                 self._response_lock.release()
             except Exception:
                 pass
-
 
     def voice_loop(self):
         """Continuously listens to mic input for wake word / prompts."""
