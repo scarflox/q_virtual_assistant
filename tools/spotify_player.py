@@ -6,7 +6,6 @@
 from langchain.tools import tool
 import re
 from dotenv import load_dotenv
-
 from rapidfuzz import fuzz
 from core.utils import wait_for_spotify_boot, start_spotify_exe, find_spotify_process
 import spotipy

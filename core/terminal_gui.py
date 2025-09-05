@@ -59,6 +59,7 @@ class TerminalGUI(App):
         self._stop_threads = False
 
     def compose(self) -> ComposeResult:
+        yield Static("Loading...", id="startup_status") 
         yield Static(_get_system_summary(), id="system_summary")
         self.chat_log = RichLog(id="chat_log")
         yield self.chat_log
@@ -68,6 +69,27 @@ class TerminalGUI(App):
     def on_mount(self):
         self._update_input_placeholder()
         self.set_focus(self.input_widget)
+        self.query_one("#startup_status", Static).update("Loading...")
+
+        def _init_heavy():
+            from core.utils import get_tts
+            try:
+                get_tts()  # preload model
+            except Exception as e:
+                self.call_from_thread(
+                    self.query_one("#startup_status", Static).update,
+                    f"Load failed: {e}"
+                )
+                return
+            
+            # mark ready once finished
+            
+            self.call_from_thread(
+                self.query_one("#startup_status", Static).update,
+                "Ready."
+            )
+
+        threading.Thread(target=_init_heavy, daemon=True).start()
         # refresh the system summary periodically in the background
         threading.Thread(target=self._system_summary_refresher, daemon=True).start()
         # start voice listener in background
