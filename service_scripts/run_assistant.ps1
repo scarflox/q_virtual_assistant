@@ -1,5 +1,5 @@
 # Go to project root
-Set-Location "F:\q_virtual_assistant"
+Set-Location "C:\q_virtual_assistant"
 
 # Enable script execution (optional if policy is restrictive)
 # Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force

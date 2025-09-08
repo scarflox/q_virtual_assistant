@@ -47,6 +47,7 @@ def get_tts():
         with suppress_stdout_stderr():
             cfg._global_tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=False)
         return cfg._global_tts
+    return cfg._global_tts
 
 
 # ---------------- SPOTIFY UTIL ----------------
